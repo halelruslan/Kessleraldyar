@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Кесслер Синдромы — Орбиталық Модельдеу Платформасы</title>
+    <!-- Chart.js for differential equation graph -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- MathJax for rendering equations -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <!-- Tailwind CSS for modern layout -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #020617;
+            color: #e2e8f0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+        }
+        .glow-title {
+            text-shadow: 0 0 20px rgba(59, 130, 246, 0.7), 0 0 40px rgba(147, 51, 234, 0.5);
+        }
+        .card-bg {
+            background: rgba(15, 23, 42, 0.82);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+        }
+        .card-bg:hover {
+            border-color: rgba(59, 130, 246, 0.5);
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #020617;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #3b82f6;
+        }
+    </style>
+</head>
+<body class="relative">
+
+    <!-- Deep Space Background Canvas -->
+    <canvas id="bgCanvas" class="fixed top-0 left-0 w-full h-full -z-10"></canvas>
+
+    <!-- Header Section -->
+    <header class="py-8 px-6 text-center border-b border-blue-900/40 bg-slate-950/85 sticky top-0 z-50 backdrop-blur-md">
+        <h1 class="text-3xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-purple-500 glow-title mb-3">
+            КЕССЛЕР СИНДРОМЫ
+        </h1>
+        <p class="text-slate-300 text-sm md:text-base max-w-3xl mx-auto">
+            Жер маңы төменгі орбитасындағы (LEO) ғарыш қоқыстарының тізбекті реакциясын талдау мен математикалық модельдеу платформасы
+        </p>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+        <!-- LEFT COLUMN: Interactive Simulation (7 cols on lg) -->
+        <section class="lg:col-span-7 flex flex-col gap-6">
+
+            <!-- Collision & Orbit Interactive Canvas -->
+            <div class="card-bg rounded-2xl p-5 shadow-2xl relative overflow-hidden">
+                <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
+                    <h2 class="text-xl font-bold text-blue-400 flex items-center gap-2">
+                        <span>🛰️</span> Ғарыштағы спутниктер соқтығысуы мен жарылысы
+                    </h2>
+                    <span class="text-xs bg-red-950/80 border border-red-500/60 text-red-400 px-3 py-1 rounded-full font-mono animate-pulse">
+                        LIVE ORBIT SIMULATION
+                    </span>
+                </div>
+
+                <div class="relative w-full h-[420px] bg-slate-950/90 rounded-xl overflow-hidden border border-slate-800 shadow-inner">
+                    <canvas id="orbitCanvas" class="w-full h-full block"></canvas>
+                    
+                    <!-- Top Bar Info & Controls -->
+                    <div class="absolute top-3 left-3 flex gap-2">
+                        <button id="triggerCollisionBtn" class="bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-bold text-xs px-3.5 py-2 rounded-lg border border-red-400/50 shadow-lg transition transform active:scale-95 flex items-center gap-1.5">
+                            <span>💥</span> Спутниктерді соқтығыстыру
+                        </button>
+                        <button id="resetSimulationBtn" class="bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs px-3 py-2 rounded-lg border border-slate-600 transition">
+                            🔄 Қайта жүктеу
+                        </button>
+                    </div>
+
+                    <!-- Bottom Bar Stats -->
+                    <div class="absolute bottom-3 left-3 right-3 flex justify-between items-center bg-slate-900/90 backdrop-blur-md px-4 py-2 rounded-lg border border-slate-700/80 text-xs">
+                        <div class="flex gap-4">
+                            <span class="text-slate-300">🛰️ Спутниктер: <strong id="satelliteCountText" class="text-blue-400 font-mono text-sm">0</strong></span>
+                            <span class="text-slate-300">🪨 Қоқыстар: <strong id="debrisCountText" class="text-red-400 font-mono text-sm">0</strong></span>
+                        </div>
+                        <span class="text-slate-300">💥 Жарылыстар: <strong id="visualCollisions" class="text-orange-400 font-mono text-sm">0</strong></span>
+                    </div>
+                </div>
+                <p class="text-xs text-slate-400 mt-3 italic">
+                    💡 <strong>Кесслер эффектісі:</strong> Спутниктер бір-біріне соқтығысқанда толқынды жарылыс орын алып, жүздеген қоқыс бөлшектері жан-жаққа шашырайды және басқа спутниктерге зақым келтіреді.
+                </p>
+            </div>
+
+            <!-- Mathematical Model Controls & Differential Equation -->
+            <div class="card-bg rounded-2xl p-6 shadow-2xl">
+                <h2 class="text-xl font-bold text-indigo-400 mb-4 flex items-center gap-2">
+                    <span>🧮</span> Математикалық Модель (Дифференциалдық теңдеу)
+                </h2>
+
+                <div class="bg-slate-900/90 p-4 rounded-xl border border-indigo-900/50 mb-6 text-center shadow-inner">
+                    <div class="text-lg md:text-xl font-mono text-indigo-200">
+                        $$\frac{dN}{dt} = G - L$$
+                    </div>
+                    <p class="text-xs text-slate-400 mt-2">
+                        Орбитадағы $N(t)$ объектілер санының уақыт бойынша өзгеру динамикасы
+                    </p>
+                </div>
+
+                <!-- Controls Sliders -->
+                <div class="space-y-4 mb-6">
+                    <div>
+                        <div class="flex justify-between text-sm mb-1">
+                            <span class="text-slate-300">Бастапқы объектілер саны ($N_0$):</span>
+                            <span id="valN0" class="font-mono text-blue-400 font-bold">2000</span>
+                        </div>
+                        <input type="range" id="sliderN0" min="500" max="10000" step="100" value="2000" class="w-full accent-blue-500 bg-slate-800 rounded-lg cursor-pointer">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between text-sm mb-1">
+                            <span class="text-slate-300">Жылдық ұшырылым қарқыны ($C_{launch}$):</span>
+                            <span id="valLaunch" class="font-mono text-emerald-400 font-bold">60</span>
+                        </div>
+                        <input type="range" id="sliderLaunch" min="0" max="300" step="10" value="60" class="w-full accent-emerald-500 bg-slate-800 rounded-lg cursor-pointer">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between text-sm mb-1">
+                            <span class="text-slate-300">Соқтығысу/Фрагментация ($k$):</span>
+                            <span id="valK" class="font-mono text-red-400 font-bold">0.000025</span>
+                        </div>
+                        <input type="range" id="sliderK" min="0.000005" max="0.0001" step="0.000005" value="0.000025" class="w-full accent-red-500 bg-slate-800 rounded-lg cursor-pointer">
+                    </div>
+                </div>
+
+                <!-- Chart -->
+                <div class="h-64 relative">
+                    <canvas id="kesslerChart"></canvas>
+                </div>
+            </div>
+
+        </section>
+
+
+        <!-- RIGHT COLUMN: Research Content (5 cols on lg) -->
+        <section class="lg:col-span-5 flex flex-col gap-6">
+
+            <!-- Quick Overview Card -->
+            <div class="card-bg rounded-2xl p-6 shadow-xl border-l-4 border-l-blue-500">
+                <h3 class="text-lg font-bold text-blue-300 mb-2">📌 Зерттеудің өзектілігі</h3>
+                <p class="text-slate-300 text-sm leading-relaxed">
+                    Қазіргі кезде Жердің төменгі орбитасы (LEO) байланыс, навигация және ғылыми зерттеулерге арналған көптеген ғарыш аппараттарының жұмыс аймағы болып табылады. Орбитадағы объектілер бірін-біріне салыстырмалы түрде <strong>10-15 км/с</strong> жылдамдықпен қозғалады. Салыстырмалы түрде кіші фрагменттің өзі жұмыс істеп тұрған ғарыш аппаратын толық жоюы мүмкін.
+                </p>
+            </div>
+
+            <!-- Goal, Hypothesis & Scope -->
+            <div class="card-bg rounded-2xl p-6 shadow-xl space-y-4">
+                <div>
+                    <h3 class="text-md font-bold text-indigo-300 flex items-center gap-2 mb-1">
+                        🎯 Зерттеу мақсаты
+                    </h3>
+                    <p class="text-slate-300 text-xs leading-relaxed">
+                        Жер маңы төменгі орбитасында (LEO) жинақталған ғарыш қоқыстарының өзара соқтығысуынан туындайтын тізбекті реакцияны — Кесслер синдромын зерттеу және оның орбиталық объектілер санының өзгеруіне ықпалын математикалық модельдеу.
+                    </p>
+                </div>
+
+                <hr class="border-slate-800">
+
+                <div>
+                    <h3 class="text-md font-bold text-purple-300 flex items-center gap-2 mb-1">
+                        💡 Зерттеу гипотезасы
+                    </h3>
+                    <p class="text-slate-300 text-xs leading-relaxed italic bg-purple-950/30 p-3 rounded-lg border border-purple-900/40">
+                        "Егер төменгі Жер орбитасындағы ғарыш объектілерінің тығыздығы белгілі бір деңгейден жоғарыласа, онда олардың өзара соқтығысу ықтималдығы артып, әрбір соқтығысу нәтижесінде пайда болған жаңа фрагменттер келесі соқтығыстардың санын көбейтіп, ғарыш қоқыстарының тізбекті түрде өсуіне алып келеді."
+                    </p>
+                </div>
+
+                <hr class="border-slate-800">
+
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <div class="bg-slate-900/60 p-2.5 rounded-lg border border-slate-800">
+                        <span class="text-blue-400 font-bold block mb-1">Зерттеу нысаны:</span>
+                        <span class="text-slate-300">LEO ғарыш объектілері мен қоқыстарының қозғалысы.</span>
+                    </div>
+                    <div class="bg-slate-900/60 p-2.5 rounded-lg border border-slate-800">
+                        <span class="text-purple-400 font-bold block mb-1">Зерттеу пәні:</span>
+                        <span class="text-slate-300">Соқтығысу ықтималдығы мен фрагментация динамикасы.</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Objectives List -->
+            <div class="card-bg rounded-2xl p-6 shadow-xl">
+                <h3 class="text-lg font-bold text-emerald-400 mb-3 flex items-center gap-2">
+                    📋 Зерттеу міндеттері
+                </h3>
+                <ul class="space-y-2 text-xs text-slate-300 list-disc list-inside">
+                    <li>Кесслер синдромының физикалық мәнін және LEO ерекшеліктерін зерттеу.</li>
+                    <li>Орбитадағы объектілердің қозғалысына әсер ететін физикалық факторларды анықтау.</li>
+                    <li>Соқтығысу нәтижесінде пайда болатын фрагменттер санын сипаттайтын модель құру.</li>
+                    <li>Әртүрлі бастапқы жағдайлар үшін компьютерлік сценарийлер жүргізу.</li>
+                    <li>Ғарыш қоқыстарының көбеюін азайтуға бағытталған шараларды сараптау.</li>
+                </ul>
+            </div>
+
+            <!-- Scientific Novelty -->
+            <div class="card-bg rounded-2xl p-6 shadow-xl border-r-4 border-r-indigo-500">
+                <h3 class="text-lg font-bold text-indigo-300 mb-2">🔬 Ғылыми жаңалық</h3>
+                <p class="text-slate-300 text-xs leading-relaxed">
+                    Кесслер синдромын тек теориялық құбылыс ретінде қарастырмай, оның даму механизмін мектеп деңгейінде түсінікті дифференциалдық математикалық модель арқылы сандық және визуальды түрде көрсету.
+                </p>
+            </div>
+
+            <!-- Mitigation Steps -->
+            <div class="card-bg rounded-2xl p-6 shadow-xl">
+                <h3 class="text-lg font-bold text-yellow-400 mb-3">🛡️ Қоқысты азайту шаралары</h3>
+                <div class="space-y-3 text-xs">
+                    <div class="p-2.5 bg-yellow-950/20 border border-yellow-800/40 rounded-lg">
+                        <strong class="text-yellow-300 block">1. Active Debris Removal (ADR)</strong>
+                        Ірі қоқыстарды гарпун, тор немесе лазер арқылы атмосфераға итеріп түсіру.
+                    </div>
+                    <div class="p-2.5 bg-blue-950/20 border border-blue-800/40 rounded-lg">
+                        <strong class="text-blue-300 block">2. Пассивация технологиясы</strong>
+                        Ішкі жарылыстарды болдырмау үшін отын қалдықтарын ағызу.
+                    </div>
+                    <div class="p-2.5 bg-purple-950/20 border border-purple-800/40 rounded-lg">
+                        <strong class="text-purple-300 block">3. 25-Жыл Ережесі</strong>
+                        Миссия аяқталған соң спутникті 25 жылда атмосферада өртеу.
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center py-6 border-t border-slate-900 bg-black/80 text-xs text-slate-500">
+        <p>Кесслер синдромын математикалық және компьютерлік модельдеу жобасы © 2026</p>
+    </footer>
+
+    <!-- Canvas & Simulation Scripts -->
+    <script>
+        /* -------------------------------------------------------------
+           1. STARRY BACKGROUND ANIMATION (Deep Space)
+        ------------------------------------------------------------- */
+        const bgCanvas = document.getElementById('bgCanvas');
+        const bgCtx = bgCanvas.getContext('2d');
+
+        function resizeBg() {
+            bgCanvas.width = window.innerWidth;
+            bgCanvas.height = window.innerHeight;
+        }
+        resizeBg();
+        window.addEventListener('resize', resizeBg);
+
+        const stars = [];
+        for (let i = 0; i < 250; i++) {
+            stars.push({
+                x: Math.random() * window.innerWidth,
+                y: Math.random() * window.innerHeight,
+                radius: Math.random() * 1.5 + 0.5,
+                alpha: Math.random(),
+                speed: Math.random() * 0.015 + 0.005
+            });
+        }
+
+        function drawBackground() {
+            bgCtx.fillStyle = '#020617';
+            bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+
+            // Deep space radial gradient (Dark Blue/Navy/Black)
+            const gradient = bgCtx.createRadialGradient(
+                bgCanvas.width/2, bgCanvas.height/2, 50,
+                bgCanvas.width/2, bgCanvas.height/2, bgCanvas.width/1.1
+            );
+            gradient.addColorStop(0, '#0f172a');
+            gradient.addColorStop(0.5, '#070a14');
+            gradient.addColorStop(1, '#020617');
+            bgCtx.fillStyle = gradient;
+            bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+
+            // Twinkling stars
+            stars.forEach(star => {
+                star.alpha += star.speed;
+                if (star.alpha > 1 || star.alpha < 0) star.speed = -star.speed;
+
+                bgCtx.beginPath();
+                bgCtx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+                bgCtx.fillStyle = `rgba(255, 255, 255, ${Math.abs(star.alpha)})`;
+                bgCtx.fill();
+            });
+
+            requestAnimationFrame(drawBackground);
+        }
+        drawBackground();
+
+
+        /* -------------------------------------------------------------
+           2. SATELLITE COLLISION & DEBRIS EXPLOSION SIMULATOR
+        ------------------------------------------------------------- */
+        const orbitCanvas = document.getElementById('orbitCanvas');
+        const orbitCtx = orbitCanvas.getContext('2d');
+
+        function fitOrbitCanvas() {
+            orbitCanvas.width = orbitCanvas.parentElement.clientWidth;
+            orbitCanvas.height = orbitCanvas.parentElement.clientHeight;
+        }
+        fitOrbitCanvas();
+        window.addEventListener('resize', fitOrbitCanvas);
+
+        let satellites = [];
+        let debrisList = [];
+        let explosions = [];
+        let collisionCount = 0;
+
+        // Satellite Class with detailed solar panels
+        class Satellite {
+            constructor(id) {
+                this.id = id;
+                this.orbitRadius = Math.random() * 110 + 65; // Orbit height
+                this.angle = Math.random() * Math.PI * 2;
+                this.speed = (Math.random() * 0.012 + 0.004) * (Math.random() < 0.5 ? 1 : -1);
+                this.width = 14;
+                this.height = 6;
+                this.color = '#38bdf8';
+                this.destroyed = false;
+            }
+
+            update(cx, cy) {
+                this.angle += this.speed;
+                this.x = cx + Math.cos(this.angle) * this.orbitRadius;
+                this.y = cy + Math.sin(this.angle) * this.orbitRadius;
+            }
+
+            draw(ctx) {
+                if (this.destroyed) return;
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle + Math.PI / 2);
+
+                // Solar panels (Left & Right blue wings)
+                ctx.fillStyle = '#0284c7';
+                ctx.fillRect(-12, -2, 7, 4);
+                ctx.fillRect(5, -2, 7, 4);
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 0.5;
+                ctx.strokeRect(-12, -2, 7, 4);
+                ctx.strokeRect(5, -2, 7, 4);
+
+                // Satellite main body (Gold/Metallic center)
+                ctx.fillStyle = '#f59e0b';
+                ctx.fillRect(-4, -4, 8, 8);
+                ctx.fillStyle = '#fbbf24';
+                ctx.fillRect(-2, -2, 4, 4);
+
+                ctx.restore();
+            }
+        }
+
+        // Space Debris Class (Jagged fragments)
+        class Debris {
+            constructor(x, y, orbitRadius, angle) {
+                this.orbitRadius = orbitRadius + (Math.random() * 16 - 8);
+                this.angle = angle + (Math.random() * 0.1 - 0.05);
+                this.speed = (Math.random() * 0.016 + 0.006) * (Math.random() < 0.5 ? 1 : -1);
+                this.size = Math.random() * 2.5 + 1;
+                this.color = Math.random() < 0.5 ? '#f87171' : '#cbd5e1';
+                this.rotation = Math.random() * Math.PI * 2;
+                this.rotSpeed = (Math.random() - 0.5) * 0.1;
+            }
+
+            update(cx, cy) {
+                this.angle += this.speed;
+                this.rotation += this.rotSpeed;
+                this.x = cx + Math.cos(this.angle) * this.orbitRadius;
+                this.y = cy + Math.sin(this.angle) * this.orbitRadius;
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                // Draw irregular polygon fragment
+                ctx.moveTo(-this.size, -this.size);
+                ctx.lineTo(this.size, -this.size / 2);
+                ctx.lineTo(this.size / 2, this.size);
+                ctx.lineTo(-this.size / 2, this.size / 2);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.restore();
+            }
+        }
+
+        // Shockwave & Fire Particle Explosion
+        class Explosion {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.radius = 2;
+                this.maxRadius = Math.random() * 25 + 20;
+                this.alpha = 1.0;
+                this.particles = [];
+
+                // Create burning blast particles
+                for (let i = 0; i < 35; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = Math.random() * 1.8 + 0.25;
+                    this.particles.push({
+                        x: x,
+                        y: y,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        size: Math.random() * 3 + 1.5,
+                        color: ['#ef4444', '#f97316', '#facc15', '#ffffff'][Math.floor(Math.random() * 4)],
+                        life: 1.0,
+                        decay: Math.random() * 0.012 + 0.006
+                    });
+                }
+            }
+
+            update() {
+                this.radius += 0.55;
+                this.alpha -= 0.012;
+
+                this.particles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vx *= 0.975; // drag
+                    p.vy *= 0.975;
+                    p.life -= p.decay;
+                });
+            }
+
+            draw(ctx) {
+                // Expanding shockwave ring
+                if (this.alpha > 0) {
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                    ctx.strokeStyle = `rgba(249, 115, 22, ${Math.max(0, this.alpha)})`;
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
+                    // Bright core flash
+                    const flashGrad = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, Math.max(1, this.radius * 0.6));
+                    flashGrad.addColorStop(0, `rgba(255, 255, 255, ${Math.max(0, this.alpha)})`);
+                    flashGrad.addColorStop(0.5, `rgba(239, 68, 68, ${Math.max(0, this.alpha * 0.5)})`);
+                    flashGrad.addColorStop(1, 'rgba(0,0,0,0)');
+                    ctx.fillStyle = flashGrad;
+                    ctx.fill();
+                    ctx.restore();
+                }
+
+                // Fire particles
+                this.particles.forEach(p => {
+                    if (p.life > 0) {
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                        ctx.fillStyle = p.color;
+                        ctx.globalAlpha = Math.max(0, p.life);
+                        ctx.shadowBlur = 6;
+                        ctx.shadowColor = p.color;
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
+                        ctx.globalAlpha = 1.0;
+                    }
+                });
+            }
+
+            isFinished() {
+                return this.alpha <= 0 && this.particles.every(p => p.life <= 0);
+            }
+        }
+
+        function initSatellites() {
+            satellites = [];
+            debrisList = [];
+            explosions = [];
+            collisionCount = 0;
+            for (let i = 0; i < 22; i++) {
+                satellites.push(new Satellite(i));
+            }
+            document.getElementById('visualCollisions').textContent = '0';
+        }
+        initSatellites();
+
+        document.getElementById('resetSimulationBtn').addEventListener('click', initSatellites);
+
+        function triggerManualCollision() {
+            const cx = orbitCanvas.width / 2;
+            const cy = orbitCanvas.height / 2;
+
+            if (satellites.length >= 2) {
+                // Select two satellites to explode together
+                const satA = satellites.pop();
+                const satB = satellites[Math.floor(Math.random() * satellites.length)];
+
+                const targetX = satA.x || cx;
+                const targetY = satA.y || cy;
+
+                // Create big explosion effect
+                explosions.push(new Explosion(targetX, targetY));
+
+                // Spawn 15-25 new space debris fragments
+                const numDebris = Math.floor(Math.random() * 10) + 15;
+                for (let k = 0; k < numDebris; k++) {
+                    debrisList.push(new Debris(targetX, targetY, satA.orbitRadius, satA.angle));
+                }
+
+                collisionCount++;
+                document.getElementById('visualCollisions').textContent = collisionCount;
+            }
+        }
+
+        document.getElementById('triggerCollisionBtn').addEventListener('click', triggerManualCollision);
+
+        function animateOrbit() {
+            orbitCtx.clearRect(0, 0, orbitCanvas.width, orbitCanvas.height);
+
+            const cx = orbitCanvas.width / 2;
+            const cy = orbitCanvas.height / 2;
+
+            // Draw Earth with atmosphere glow
+            const earthAtmosphere = orbitCtx.createRadialGradient(cx, cy, 38, cx, cy, 52);
+            earthAtmosphere.addColorStop(0, 'rgba(59, 130, 246, 0.8)');
+            earthAtmosphere.addColorStop(0.5, 'rgba(37, 99, 235, 0.25)');
+            earthAtmosphere.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+            orbitCtx.fillStyle = earthAtmosphere;
+            orbitCtx.beginPath();
+            orbitCtx.arc(cx, cy, 52, 0, Math.PI * 2);
+            orbitCtx.fill();
+
+            // Earth body
+            const earthGrad = orbitCtx.createRadialGradient(cx - 10, cy - 10, 5, cx, cy, 40);
+            earthGrad.addColorStop(0, '#60a5fa');
+            earthGrad.addColorStop(0.6, '#1d4ed8');
+            earthGrad.addColorStop(1, '#0f172a');
+
+            orbitCtx.beginPath();
+            orbitCtx.arc(cx, cy, 40, 0, Math.PI * 2);
+            orbitCtx.fillStyle = earthGrad;
+            orbitCtx.shadowBlur = 12;
+            orbitCtx.shadowColor = '#3b82f6';
+            orbitCtx.fill();
+            orbitCtx.shadowBlur = 0;
+
+            // Orbit Path Lines
+            [80, 115, 150].forEach(r => {
+                orbitCtx.beginPath();
+                orbitCtx.arc(cx, cy, r, 0, Math.PI * 2);
+                orbitCtx.strokeStyle = 'rgba(59, 130, 246, 0.12)';
+                orbitCtx.lineWidth = 1;
+                orbitCtx.stroke();
+            });
+
+            // Update & Draw Satellites
+            satellites.forEach(sat => {
+                sat.update(cx, cy);
+                sat.draw(orbitCtx);
+            });
+
+            // Update & Draw Space Debris
+            debrisList.forEach(deb => {
+                deb.update(cx, cy);
+                deb.draw(orbitCtx);
+            });
+
+            // Collision Detection: Satellite vs Satellite
+            for (let i = 0; i < satellites.length; i++) {
+                for (let j = i + 1; j < satellites.length; j++) {
+                    const dx = satellites[i].x - satellites[j].x;
+                    const dy = satellites[i].y - satellites[j].y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < 12 && Math.random() < 0.008) {
+                        explosions.push(new Explosion(satellites[i].x, satellites[i].y));
+                        for (let k = 0; k < 12; k++) {
+                            debrisList.push(new Debris(satellites[i].x, satellites[i].y, satellites[i].orbitRadius, satellites[i].angle));
+                        }
+                        satellites.splice(j, 1);
+                        satellites.splice(i, 1);
+                        collisionCount++;
+                        document.getElementById('visualCollisions').textContent = collisionCount;
+                        break;
+                    }
+                }
+            }
+
+            // Collision Detection: Debris vs Satellite (Cascade reaction)
+            for (let i = satellites.length - 1; i >= 0; i--) {
+                for (let j = 0; j < debrisList.length; j++) {
+                    const dx = satellites[i].x - debrisList[j].x;
+                    const dy = satellites[i].y - debrisList[j].y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < 8 && Math.random() < 0.004) {
+                        explosions.push(new Explosion(satellites[i].x, satellites[i].y));
+                        for (let k = 0; k < 8; k++) {
+                            debrisList.push(new Debris(satellites[i].x, satellites[i].y, satellites[i].orbitRadius, satellites[i].angle));
+                        }
+                        satellites.splice(i, 1);
+                        collisionCount++;
+                        document.getElementById('visualCollisions').textContent = collisionCount;
+                        break;
+                    }
+                }
+            }
+
+            // Update & Draw Explosions
+            for (let i = explosions.length - 1; i >= 0; i--) {
+                explosions[i].update();
+                explosions[i].draw(orbitCtx);
+                if (explosions[i].isFinished()) {
+                    explosions.splice(i, 1);
+                }
+            }
+
+            // Auto-spawn replacement satellites if depleted
+            if (satellites.length < 5 && Math.random() < 0.02) {
+                satellites.push(new Satellite(Date.now()));
+            }
+
+            // Cap debris limit to prevent lag
+            if (debrisList.length > 300) {
+                debrisList.splice(0, 50);
+            }
+
+            document.getElementById('satelliteCountText').textContent = satellites.length;
+            document.getElementById('debrisCountText').textContent = debrisList.length;
+
+            requestAnimationFrame(animateOrbit);
+        }
+        animateOrbit();
+
+
+        /* -------------------------------------------------------------
+           3. CHART.JS MATHEMATICAL MODEL SIMULATOR
+        ------------------------------------------------------------- */
+        const ctxChart = document.getElementById('kesslerChart').getContext('2d');
+
+        let params = {
+            N0: 2000,
+            C_launch: 60,
+            k: 0.000025,
+            D_decay: 0.04,
+            years: 50
+        };
+
+        function calculateKesslerData() {
+            let labels = [];
+            let data = [];
+            let N = params.N0;
+
+            for (let t = 0; t <= params.years; t++) {
+                labels.push(`${t} ж`);
+                data.push(Math.round(N));
+
+                // Differential Equation: dN/dt = G - L
+                // G = C_launch + k * N^2   (growth)
+                // L = D_decay * N         (losses)
+                let G = params.C_launch + (params.k * N * N);
+                let L = params.D_decay * N;
+                let dN = G - L;
+                N = N + dN;
+                if (N < 0) N = 0;
+            }
+            return { labels, data };
+        }
+
+        const initialChartData = calculateKesslerData();
+
+        const kesslerChart = new Chart(ctxChart, {
+            type: 'line',
+            data: {
+                labels: initialChartData.labels,
+                datasets: [{
+                    label: 'Орбитадағы объектілер саны (N)',
+                    data: initialChartData.data,
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: { color: '#94a3b8', font: { size: 11 } }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: '#64748b', font: { size: 10 } },
+                        grid: { color: 'rgba(51, 65, 85, 0.3)' }
+                    },
+                    y: {
+                        ticks: { color: '#64748b', font: { size: 10 } },
+                        grid: { color: 'rgba(51, 65, 85, 0.3)' }
+                    }
+                }
+            }
+        });
+
+        // Sliders Event Listeners
+        document.getElementById('sliderN0').addEventListener('input', (e) => {
+            params.N0 = parseFloat(e.target.value);
+            document.getElementById('valN0').textContent = params.N0;
+            updateChart();
+        });
+
+        document.getElementById('sliderLaunch').addEventListener('input', (e) => {
+            params.C_launch = parseFloat(e.target.value);
+            document.getElementById('valLaunch').textContent = params.C_launch;
+            updateChart();
+        });
+
+        document.getElementById('sliderK').addEventListener('input', (e) => {
+            params.k = parseFloat(e.target.value);
+            document.getElementById('valK').textContent = params.k.toFixed(6);
+            updateChart();
+        });
+
+        function updateChart() {
+            const newData = calculateKesslerData();
+            kesslerChart.data.labels = newData.labels;
+            kesslerChart.data.datasets[0].data = newData.data;
+            
+            const maxVal = Math.max(...newData.data);
+            if (maxVal > 15000) {
+                kesslerChart.data.datasets[0].borderColor = '#ef4444';
+                kesslerChart.data.datasets[0].backgroundColor = 'rgba(239, 68, 68, 0.2)';
+            } else {
+                kesslerChart.data.datasets[0].borderColor = '#3b82f6';
+                kesslerChart.data.datasets[0].backgroundColor = 'rgba(59, 130, 246, 0.15)';
+            }
+
+            kesslerChart.update();
+        }
+    </script>
+</body>
+</html>
